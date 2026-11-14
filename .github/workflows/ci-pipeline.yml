@@ -1,0 +1,53 @@
+name: Pipeline de Integracao Continua (CI)
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+
+jobs:
+  ci-web-application:
+    name: Validacao, Seguranca, Testes e Build de Imagem
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout do codigo-fonte
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar ambiente Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 3. Instalar dependencias
+        run: npm ci
+
+      - name: 4. Analise de formatacao (Prettier)
+        run: npm run format:check
+
+      - name: 5. Analise estatica de codigo (ESLint)
+        run: npm run lint
+
+      - name: 6. Analise estatica de seguranca (ESLint Security + npm audit)
+        run: npm run security:check
+
+      - name: 7. Build da aplicacao (TypeScript)
+        run: npm run build
+
+      - name: 8. Testes unitarios
+        run: npm run test:unit
+
+      - name: 9. Testes de integracao (API REST + SQL)
+        run: npm run test:integration
+
+      - name: 10. Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 11. Criar imagem Docker da aplicacao
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: web-app-ci:${{ github.sha }}
